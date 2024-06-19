@@ -1,0 +1,89 @@
+/* @file
+ *
+ * @brief Non-Volatile Storage (NVS) Read and Write a Value
+ *
+ * @section LICENCE
+ *
+ * This code is in the Public Domain (or CC0 licensed, at your option.)
+ *
+ * Unless required by applicable law or agreed to in writing, this
+ * software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+*/
+
+#ifndef __NVS_DEVICE_H__
+#define __NVS_DEVICE_H__
+
+
+#ifdef __cplusplus
+
+namespace nvs
+{
+
+//--[ Class device ]---------------------------------------------------------------------------------------------------
+
+    /// Static class for using as singleton
+    /// Representation of a nvs partition
+    /// Usage: nvs::dev::core() or nvs::dev::partition for get a device.
+    class dev
+    {
+    public:
+
+	/// get the nvs device instance
+	/// with sofisticated initialization:
+	/// one pass reinit if first initialization
+	static dev& partition();
+
+	/// Reinitialize partition manually
+	esp_err_t reInit();
+
+	/// Simple get the nvs device instance
+	static dev& core();
+
+	/// status of the device
+	esp_err_t status();		/// object relative version - for calling as device::get().status()
+	bool isOK();			/// check, if nvs subsystem status is OK, object relative version
+	static esp_err_t state();	/// static version - for call as device::state()
+	static bool check();		/// check the nvs partition status
+	operator esp_err_t();
+	operator bool();
+
+    protected:
+	dev(const std::string& /*char[]*/);	/// constructor for the named partition
+	static esp_err_t Init(const std::string& /*char[]*/);	/// initialize the named partition
+
+    private:
+	esp_err_t err = ESP_ERR_NVS_INVALID_HANDLE;	/// initial status of partition/device: not initialized
+
+	static esp_err_t Init();    /// initialize default partition
+
+	dev();
+	dev(const dev&) = delete;
+	dev& operator=(const dev&) = delete;
+    }; /* device */
+
+
+    /// status of the device
+    inline esp_err_t dev::state() {
+	return dev::core().status();
+    }; /* device::status */
+
+
+    /// status of the device - direct conversion to a esp_err_t
+    inline dev::operator esp_err_t() {
+	return status();
+    }; /* device::operator esp_err_t */
+
+    /// status of the device - is a device OK?
+    inline dev::operator bool() {
+	return isOK();
+    }; /* device::operator esp_err_t */
+
+
+    //--[ end of Class device ]----------------------------------------------------------------------------------------
+
+}; /* namespace nvs */
+
+#endif	// __cplusplus
+
+#endif // __NVS_DEVICE_H__

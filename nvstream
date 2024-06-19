@@ -1,0 +1,171 @@
+/** @file
+ *
+ * @brief Non-Volatile Storage (NVS) Read and Write a Value
+
+ * @section LICENCE
+
+   This code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+
+ *
+ * @date Created on: 17 ноя. 2023 г.
+ * @author  Solomatov A.A. (aso)
+*/
+
+#ifndef __NVSTREAM_H__
+#define __NVSTREAM_H__
+
+
+#ifdef __cplusplus
+
+namespace nvs
+{
+
+    enum open_mode
+    {
+	readonly,
+	readwrite
+    }; /* enum nvs::mode */
+
+    template <typename itype>
+    class name /* new class name is 'at_name' */
+    {
+    public:
+	name(const char name[], itype&& item);
+	template <const char tname[]>
+	name(itype&& item);
+	name(const std::string&, itype&& item);
+
+	std::string dname;
+	itype& data;
+
+    }; /* class nvs::name */
+
+    template <typename itype>
+    name<itype>::name(const char name[], itype&& item):
+	dname(name), data(item) {};
+
+    template <typename itype>
+    template <const char tname[]>
+    name<itype>::name(itype&& item):
+	dname(tname), data(std::forward<itype>(item)) {};
+
+    template <typename itype>
+    name<itype>::name(const std::string& name, itype&& item):
+	dname(name), data(item) {};
+
+
+//    template <const char itname[]>
+////    template <typename tn>
+//    auto/*name<tn>*/ name2(tn&& item)
+//    {
+//	return name(itname, item);
+//    }; /* nvs::name2() */
+
+
+
+    /// Representation of the nvs device namespaces
+    class stream
+    {
+    public:
+	stream();
+	stream(const std::string& spacename, open_mode mode = readonly);
+	virtual ~stream();
+	esp_err_t commit();
+	esp_err_t status() const { return err; };
+
+	template <typename ItemType>
+	esp_err_t read(const std::string& name, ItemType& item);
+	template <typename T, size_t size>
+	esp_err_t read(std::string& name, T (&item)[size]);
+	template <size_t size>
+	esp_err_t read(const std::string& name, char(&item)[size]);	///<@brief Read the char[] item from the NVS namespace
+	template <typename ItemType>
+	esp_err_t write(const std::string& name, ItemType item);
+
+	esp_err_t open(const std::string& name, open_mode mode = readonly);
+	esp_err_t open_partition(const std::string&  part_name, const std::string& name, open_mode mode = readonly);
+	esp_err_t close();
+
+	esp_err_t read_str(const std::string& name, char* item, size_t& length);///<@brief read c-string from nvs storage
+	esp_err_t write_str(const std::string& name, const char* item); 	///<@brief write c-string to nvs storage
+
+	esp_err_t write_blob(const std::string& name, const void* item, size_t length);	///<@brief write the blob object to nvs storage
+	esp_err_t  read_blob(const std::string& name, void* item, size_t& length);	///<@brief read the blob object fromnvs storage
+
+	 /// stream is changed
+	bool changed() const { return chg_st; };
+	/// clear change state manually
+	void clr_chngst() { chg_st = false; };
+
+
+    private:
+
+	void set_chgst();	///< set the changing state of the nvs::stream
+	template <typename ItemType>
+	size_t get_size(const std::string& name);	///< @brief get size of the item named 'name'; defined for the std::string, char* & void* or void (length of string or length of the blob)
+	bool chg_st = false;	///< status of changing: writing is occur ater last commiting
+	esp_err_t err;		///< status of device namespace handle - initial status partition/device: not initialized
+	uint32_t store = 0;	///< storage for the nvs handler
+
+	/// @brief implementation of the read/write operation
+	template <typename ItemT>
+	class core;
+
+    }; /* nvs::stream */
+
+
+    ///TODO Unused now - need full inplemented
+    ///@brief Read the char[] item from the NVS namespace
+    template <size_t size>
+    inline esp_err_t stream::read(const std::string& name, char(&item)[size])
+    {
+	ESP_LOGW(__func__, "Read the char[] item '%s', with len %i, old value is: %s", name.c_str(), size, item);
+	err = read_str(name.c_str(), item, size);
+	return err;
+    }; /* stream::read<char*>() */
+
+
+
+    // Forward declaration for the write operation the int8_t item to the NVS namespace
+    template <>
+    esp_err_t stream::write<int8_t>(const std::string& name, int8_t item);
+
+
+    // Write the 'char' item to the NVS namespace
+    template <>
+    inline esp_err_t stream::write<char>(const std::string& name, char item) {
+	ESP_LOGW(__func__, "Write the 'char' item '%s': %c, value is: %i", name.c_str(), item, item);
+	return write<int8_t>(name, item);
+    }; /* stream::write<int8_t>() */
+
+    // Write the 'bool' item to the NVS namespace
+    template <>
+    inline esp_err_t stream::write<bool>(const std::string& name, bool item) {
+	ESP_LOGW(__func__, "Write the 'bool' item '%s', value is: [%s]", name.c_str(), item? "True": "False");
+	return write<char>(name, item? '1': '0');
+    }; /* stream::write<int8_t>() */
+
+
+
+
+
+    template <typename itype>
+    inline stream& operator << (stream& strm, const name<itype>& item)
+	{ strm.write(std::string(item.dname), item.data); return strm; };
+
+    template <typename itype>
+    inline stream& operator >> (stream& strm, name<itype>&& item)
+	{ strm.read(std::string(item.dname), item.data); return strm; };
+
+}; /* namespace nvs */
+
+
+
+#endif	// __cplusplus
+
+
+#endif // __NVS_DEVICE_H__
