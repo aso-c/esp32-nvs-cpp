@@ -1,3 +1,4 @@
 # esp32-nvs-cpp
 C++ wrapper for ESP32 NVS storage system.  
-*Component for ESP-IDF-based project.*
+*Component for ESP-IDF-based project.*  
+*(Implied cloning into 'nvs' directory.)*
